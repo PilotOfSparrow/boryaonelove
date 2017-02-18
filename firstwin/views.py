@@ -1,27 +1,16 @@
 import subprocess
 
-from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
+from django.shortcuts import render
 # Create your views here.
 
-from django import forms
-from codemirror import CodeMirrorTextarea
+from .forms import CodeInsertForm
 
 
-class ContactForm(forms.Form):
-    # codemirror_widget = CodeMirrorTextarea(
-    #         mode="text/x-csrc",
-    #         theme="cobalt",
-    #         config={
-    #             'fixedGutter': True
-    #             },
-    #         )
-    content = forms.CharField(required=False, widget=CodeMirrorTextarea)
-
-
-def firstwin(request):
+def index(request):
     if request.method == "POST":
-        form_class = ContactForm(request.POST)
+        form_class = CodeInsertForm(request.POST)
 
         if form_class.is_valid():
             var = form_class.cleaned_data["content"]
@@ -42,12 +31,19 @@ def firstwin(request):
                              % (tmp_source_file_name, tmp_source_file_extension)])
             subprocess.call(["docker", "exec", "gcc", "rm", "-r", "%s.%s"
                              % (tmp_source_file_name, tmp_outp_extension)])
+            subprocess.call(["docker", "stop", "gcc"])
+
             outp = open("%s.%s" % (tmp_source_file_name, tmp_outp_extension), "r")
             love = outp.read()
             return HttpResponse(love)
 
     else:
-        form_class = ContactForm
-        return render(request, 'firstwin.html', {
+        form_class = CodeInsertForm
+        return render(request, 'index.html', {
             'form': form_class,
-            })
+        })
+
+
+@login_required
+def home(request):
+    return render(request, 'home.html')

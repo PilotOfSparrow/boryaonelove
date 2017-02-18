@@ -24,4 +24,11 @@
             <!--</script>-->
 	    <button type="submit">Submit</button>
 </form>
+
+<a href="{% url 'social:begin' 'github' %}?next={{ request.path }}">Login with GitHub</a>
+
+{% if user and not user.is_anonymous %}
+<p>LOve</p>
+{% endif %}
+
 {% endblock %}
