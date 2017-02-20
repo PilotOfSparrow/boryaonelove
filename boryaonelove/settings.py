@@ -109,6 +109,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.github.GithubOAuth2',
+
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+SOCIAL_AUTH_URL_NAMESPACE = 'social'
+
+SOCIAL_AUTH_GITHUB_KEY = 'a3f0a48abd7265189fae'
+SOCIAL_AUTH_GITHUB_SECRET = '4e0418e5ebbb0dfbe737abdf33e5e2dc3dd58a1f'
+
 SOCIAL_AUTH_PIPELINE = (
     # Get the information we can about the user and return it in a simple
     # format to create the user instance later. On some cases the details are
@@ -153,17 +164,6 @@ SOCIAL_AUTH_PIPELINE = (
     # Update the user record with any changed info from the auth service.
     'social_core.pipeline.user.user_details',
 )
-
-AUTHENTICATION_BACKENDS = (
-    'social.backends.github.GithubOAuth2',
-
-    'django.contrib.auth.backends.ModelBackend',
-)
-
-SOCIAL_AUTH_URL_NAMESPACE = 'social'
-
-SOCIAL_AUTH_GITHUB_KEY = 'a3f0a48abd7265189fae'
-SOCIAL_AUTH_GITHUB_SECRET = '4e0418e5ebbb0dfbe737abdf33e5e2dc3dd58a1f'
 
 LOGIN_URL = 'login/'
 # LOGOUT_URL = 'logout'

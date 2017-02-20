@@ -28,7 +28,11 @@
 <a href="{% url 'social:begin' 'github' %}?next={{ request.path }}">Login with GitHub</a>
 
 {% if user and not user.is_anonymous %}
-<p>LOve</p>
+<p>Hello {{ user.get_username }}</p>
+
+{% else %}
+Love
+
 {% endif %}
 
 {% endblock %}
