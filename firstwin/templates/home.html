@@ -2,4 +2,13 @@
 {% block content %}
   <h2>Homepage</h2>
   <p>Hello {{ user }}!</p>
+  <p>You can choose from your repositories. Makefile required!</p>
+
+  <p>
+      <form role="form" action="" method="post">
+          {% csrf_token %}
+         <p>{{ ch }}</p>
+         <button type="submit">Submit</button>
+      </form>
+  </p>
 {% endblock %}

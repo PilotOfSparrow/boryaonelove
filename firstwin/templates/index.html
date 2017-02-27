@@ -9,7 +9,7 @@
 {% block content %}
 <h1>Boryaonelove</h1>
         <form role="form" action="" method="post">
-                {% csrf_token %}
+            {% csrf_token %}
             <!--<div id="container">-->
                 <!--<textarea id="code" cols="10" rows="4"></textarea>-->
             <!--</div>-->
@@ -25,13 +25,13 @@
 	    <button type="submit">Submit</button>
 </form>
 
-<a href="{% url 'social:begin' 'github' %}?next={{ request.path }}">Login with GitHub</a>
+<a href="{% url 'social:begin' 'github' %}?next=/home">Login with GitHub</a>
 
 {% if user and not user.is_anonymous %}
 <p>Hello {{ user.get_username }}</p>
 
 {% else %}
-Love
+<p>You aren't authorised yet</p>
 
 {% endif %}
 
