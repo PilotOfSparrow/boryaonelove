@@ -92,7 +92,7 @@ ENV/
 
 # Project related folders
 .idea/
-./firstwin/static
+firstwin/static
 
 # Docker test temp files
 tmpS.c
