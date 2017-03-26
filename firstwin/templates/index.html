@@ -26,6 +26,7 @@
 </form>
 
 <a href="{% url 'social:begin' 'github' %}?next=/home">Login with GitHub</a>
+<!--<a href="{% url 'social:begin' 'bitbucket' %}?next=/home">Login with BitBucket</a>-->
 
 {% if user and not user.is_anonymous %}
 <p>Hello {{ user.get_username }}</p>

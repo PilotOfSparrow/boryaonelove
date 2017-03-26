@@ -110,7 +110,11 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = (
-    'social_core.backends.github.GithubOAuth2',
+    # 'social_core.backends.github.GithubOAuth2',
+
+    'firstwin.backends.CustomGithubOAuth2',
+
+    'social_core.backends.bitbucket.BitbucketOAuth',
 
     'django.contrib.auth.backends.ModelBackend',
 )
@@ -119,6 +123,9 @@ SOCIAL_AUTH_URL_NAMESPACE = 'social'
 
 SOCIAL_AUTH_GITHUB_KEY = 'a3f0a48abd7265189fae'
 SOCIAL_AUTH_GITHUB_SECRET = '4e0418e5ebbb0dfbe737abdf33e5e2dc3dd58a1f'
+
+SOCIAL_AUTH_BITBUCKET_KEY = 'XWHXnMaUNDJmWwE2Db'
+SOCIAL_AUTH_BITBUCKET_SECRET = 'Zr9dxUr5JPKachDNaCG5VFhJ5JJSA7TA'
 
 SOCIAL_AUTH_PIPELINE = (
     # Get the information we can about the user and return it in a simple
@@ -149,7 +156,7 @@ SOCIAL_AUTH_PIPELINE = (
 
     # Associates the current social details with another user account with
     # a similar email address. Disabled by default.
-    # 'social_core.pipeline.social_auth.associate_by_email',
+    'social_core.pipeline.social_auth.associate_by_email',
 
     # Create a user account if we haven't found one yet.
     'social_core.pipeline.user.create_user',
@@ -157,7 +164,13 @@ SOCIAL_AUTH_PIPELINE = (
     # Create the record that associates the social account with the user.
     'social_core.pipeline.social_auth.associate_user',
 
-    'firstwin.pipeline.request_list_of_repos',
+
+
+
+   'firstwin.pipeline.request_list_of_repos',
+
+
+
 
     # Populate the extra_data field in the social record with the values
     # specified by settings (and the default ones like access_token, etc).
@@ -200,3 +213,8 @@ CODEMIRROR_PATH = "/home/user1/bakawok/boryaonelove/firstwin/static/codemirror/"
 CODEMIRROR_MODE = "text/x-csrc"
 
 
+EMAIL_HOST = 'smtp.yandex.ru'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'boryaonelove@ya.ru'
+EMAIL_HOST_PASSWORD = 'robotrock'
+EMAIL_USE_TLS = True

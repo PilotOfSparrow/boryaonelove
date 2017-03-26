@@ -1,14 +1,25 @@
+import datetime
 import json
+import os
 import subprocess
+
+from django.core.mail import send_mail
 from requests import get
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.core.cache import cache
 # Create your views here.
-
+from boryaonelove import settings
 from .forms import CodeInsertForm, ChooseMeSenpai
 
+cur_backend = ''
 
+def get_current_backend(backend_name):
+    cur_backend = backend_name
+
+# docker run -i -t -w /home/borealis/borealis/ -v /var/os:/home/borealis/borealis/shamanKing vorpal/borealis-standalone
+# ./wrapper -c /home/borealis/borealis/shamanKing/main.c
 def index(request):
     if request.method == "POST":
         form_class = CodeInsertForm(request.POST)
@@ -39,6 +50,24 @@ def index(request):
             return HttpResponse(love)
 
     else:
+
+        # TEST!!!!!
+        try:
+            with open('/var/os/iputils/persistentDefectData.json') as mistakes_dump:
+                mistakes_data = json.load(mistakes_dump)
+
+        except FileNotFoundError:
+            print('Borealis can\'t find any mistakes')
+            return HttpResponse('Borealis can\'t find any mistakes')
+
+        for mistake in mistakes_data:
+            if bool(mistake):
+                mistake_list = mistake
+
+        # TEST!!!!
+
+
+
         form_class = CodeInsertForm
         return render(request, 'index.html', {
             'form': form_class,
@@ -47,6 +76,20 @@ def index(request):
 
 @login_required
 def home(request):
+    user_backend = cache.get('backend')
+
+    logged_user_object = request.user.social_auth.get(user=request.user.id, provider=user_backend)
+
+    # user_provider = logged_user_object.provider
+
+    # может попробовать посылать access_token?
+    # if user_backend == 'bitbucket':
+    #     access_token = logged_user_object.access_token
+    #     bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/pilotofsparrow?oauth_token_secret=%s&oauth_token=%s'
+    #                            % (access_token['oauth_token_secret'], access_token['oauth_token']))
+    #     print(bb_rep_list_json.text)
+    #     return HttpResponse("You logged in as bitbucket user")
+
     urepos_list_json = get('https://api.github.com/users/%s/repos' % request.user)
 
     # print(*tmp, sep='\n')
@@ -65,20 +108,77 @@ def home(request):
 
             urepos_content_json = get('https://api.github.com/repos/%s/%s/contents' % (request.user, urepos_choice))
             for file in json.loads(urepos_content_json.text):
-                if (file['name'] == 'Makefile' or
-                            file['name'] == 'makefile'):
+                if file['name'] == 'Makefile' or file['name'] == 'makefile':
+                    # генерируем имя для рабочей дериктории
+                    str_current_run_dir = '/tmp/borya/%s/%s' % (request.user,
+                                                                str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')))
+                    os.makedirs(str_current_run_dir)
+
                     subprocess.call(['git', 'clone', '--depth=1',
                                      'https://github.com/%s/%s' % (request.user, urepos_choice),
-                                     '/tmp/%s/%s' % (request.user, urepos_choice)])
+                                     '%s' % str_current_run_dir])
 
-                    subprocess.call(['make', '-C', '/tmp/%s/%s' % (request.user, urepos_choice)])
-                    return HttpResponse('love')
+                    # subprocess.call(['make', '-C', '/tmp/%s/%s' % (request.user, urepos_choice)])
 
+                    # если есть '-d' запускаем контейнер фоном (+ в stdout выводится container ID)(НЕ блочит выполнение)
+                    # subprocess.call(["docker", "run", "-d",
+                    #                  # меняем рабочую директорию(для мейка)
+                    #                  "-w", "/home/borealis/borealis/checkingTmp",
+                    #                  # расшариваем директорию с проектом
+                    #                  "-v", "%s:/home/borealis/borealis/checkingTmp" % str_current_run_dir,
+                    #                  # имя запускаемого образа
+                    #                  "vorpal/borealis-standalone",
+                    #                  # команда, запускаемая в контейнере
+                    #                  "sudo make CC=/home/borealis/borealis/wrapper"]
+                    #                 )
+
+                    subprocess.call(["docker", "run",
+                                     # меняем рабочую директорию(для мейка)
+                                     "-w", "/home/borealis/borealis/checkingTmp",
+                                     # расшариваем директорию с проектом
+                                     "-v", "%s:/home/borealis/borealis/checkingTmp" % str_current_run_dir,
+                                     # имя запускаемого образа
+                                     "vorpal/borealis-standalone",
+                                     # команда, запускаемая в контейнере
+                                     "sudo", "make", "CC=/home/borealis/borealis/wrapper",
+                                     ])
+
+
+
+                    try:
+                        with open('%s/persistentDefectData.json' % str_current_run_dir) as mistakes_dump:
+                            mistakes_data = json.load(mistakes_dump)
+
+                    except FileNotFoundError:
+                        print('Borealis can\'t find any mistakes')
+                        send_mail(
+                            '%s checked!' % urepos_choice,
+                            'Borya cant find any mistakes',
+                            settings.EMAIL_HOST_USER,
+                            [request.user.email],
+                        )
+                        return HttpResponse('Borealis can\'t find any mistakes')
+
+
+                    for mistake in mistakes_data:
+                        if bool(mistake):
+                            mistakes_list = mistake
+
+                    send_mail(
+                        '%s checked!' % urepos_choice,
+                        'Borya founded %s mistakes' % len(mistakes_list),
+                        settings.EMAIL_HOST_USER,
+                        [request.user.email],
+                    )
+
+                    return HttpResponse(mistakes_data)
+
+                    # __future__ http response
+                    # return HttpResponse('Thank you for using Borealis! '
+                    #                     'It\'s can take a while to check whole project, so'
+                    #                     'we will inform you via email when it\'s ready.')
 
             return HttpResponse('Selected repository doesn\'t contain makefile!')
-
-
-
 
     # print(request.user)
 
