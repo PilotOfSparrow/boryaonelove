@@ -11,12 +11,9 @@ from django.shortcuts import render
 from django.core.cache import cache
 # Create your views here.
 from boryaonelove import settings
+from firstwin.models import DefectSearch, Defect
 from .forms import CodeInsertForm, ChooseMeSenpai
 
-cur_backend = ''
-
-def get_current_backend(backend_name):
-    cur_backend = backend_name
 
 # docker run -i -t -w /home/borealis/borealis/ -v /var/os:/home/borealis/borealis/shamanKing vorpal/borealis-standalone
 # ./wrapper -c /home/borealis/borealis/shamanKing/main.c
@@ -55,6 +52,7 @@ def index(request):
         try:
             with open('/var/os/iputils/persistentDefectData.json') as mistakes_dump:
                 mistakes_data = json.load(mistakes_dump)
+
 
         except FileNotFoundError:
             print('Borealis can\'t find any mistakes')
@@ -110,27 +108,28 @@ def home(request):
             for file in json.loads(urepos_content_json.text):
                 if file['name'] == 'Makefile' or file['name'] == 'makefile':
                     # генерируем имя для рабочей дериктории
-                    str_current_run_dir = '/tmp/borya/%s/%s' % (request.user,
-                                                                str(datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')))
+                    cur_year = str(datetime.datetime.now().strftime('%Y'))
+                    cur_month = str(datetime.datetime.now().strftime('%m'))
+                    cur_day = str(datetime.datetime.now().strftime('%d'))
+                    cur_hour = str(datetime.datetime.now().strftime('%H'))
+                    cur_min = str(datetime.datetime.now().strftime('%M'))
+                    cur_sec = str(datetime.datetime.now().strftime('%S'))
+                    cur_time = '%s-%s-%s-%s-%s-%s' % (cur_year, cur_month, cur_day, cur_hour, cur_min, cur_sec)
+                    str_current_run_dir = '/tmp/borya/%s/%s' % (request.user, cur_time)
+
                     os.makedirs(str_current_run_dir)
 
                     subprocess.call(['git', 'clone', '--depth=1',
                                      'https://github.com/%s/%s' % (request.user, urepos_choice),
                                      '%s' % str_current_run_dir])
 
-                    # subprocess.call(['make', '-C', '/tmp/%s/%s' % (request.user, urepos_choice)])
+                    current_search = DefectSearch.objects.create(
+                        user=request.user,
+                        time= '%s-%s-%s %s:%s:%s' % (cur_year, cur_month, cur_day, cur_hour, cur_min, cur_sec),
+                        repository=str(urepos_choice),
+                    )
 
-                    # если есть '-d' запускаем контейнер фоном (+ в stdout выводится container ID)(НЕ блочит выполнение)
-                    # subprocess.call(["docker", "run", "-d",
-                    #                  # меняем рабочую директорию(для мейка)
-                    #                  "-w", "/home/borealis/borealis/checkingTmp",
-                    #                  # расшариваем директорию с проектом
-                    #                  "-v", "%s:/home/borealis/borealis/checkingTmp" % str_current_run_dir,
-                    #                  # имя запускаемого образа
-                    #                  "vorpal/borealis-standalone",
-                    #                  # команда, запускаемая в контейнере
-                    #                  "sudo make CC=/home/borealis/borealis/wrapper"]
-                    #                 )
+                    # subprocess.call(['make', '-C', '/tmp/%s/%s' % (request.user, urepos_choice)])
 
                     subprocess.call(["docker", "run",
                                      # меняем рабочую директорию(для мейка)
@@ -159,14 +158,27 @@ def home(request):
                         )
                         return HttpResponse('Borealis can\'t find any mistakes')
 
-
+                    index_of_mistake = 0
                     for mistake in mistakes_data:
                         if bool(mistake):
                             mistakes_list = mistake
+                            Defect.objects.create(
+                                defect_search=current_search,
+                                file_name=mistake[index_of_mistake]['location']['filename'],
+                                type_of_defect=mistake[index_of_mistake]['type'],
+                                column=mistake[index_of_mistake]['location']['loc']['col'],
+                                line=mistake[index_of_mistake]['location']['loc']['line'],
+                            )
+                            ++index_of_mistake
+
+
+                    # some = Defect.objects.filter(defect_search=current_search)
+
+
 
                     send_mail(
                         '%s checked!' % urepos_choice,
-                        'Borya founded %s mistakes' % len(mistakes_list),
+                        'Borya founded %s mistakes' % len(mistake),
                         settings.EMAIL_HOST_USER,
                         [request.user.email],
                     )
@@ -183,6 +195,13 @@ def home(request):
     # print(request.user)
 
     choose = ChooseMeSenpai(rep_choices=urepos_tuple_list)
+    somebody = DefectSearch.objects.filter(user=request.user).latest('time')
+    defects_query = Defect.objects.filter(defect_search=somebody)
+
+    for p in defects_query:
+        print(p.file_name)
+
     return render(request, 'home.html', {
-        'ch': choose
+        'ch': choose,
+        'defects_query': defects_query,
     })

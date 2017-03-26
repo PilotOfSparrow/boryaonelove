@@ -97,3 +97,6 @@ firstwin/static
 # Docker test temp files
 tmpS.c
 tmpS.s
+
+# DB file
+*.sqlite3

@@ -11,4 +11,22 @@
          <button type="submit">Submit</button>
       </form>
   </p>
+
+<table>
+    <tr>
+        <th>File name</th>
+        <th>Type of defect</th>
+        <th>Column</th>
+        <th>Line</th>
+    </tr>
+    {% for item in defects_query %}
+        <tr>
+            <td>{{ item.file_name }}</td>
+            <td>{{ item.type_of_defect }}</td>
+            <td>{{ item.column }}</td>
+            <td>{{ item.line }}</td>
+        </tr>
+    {% endfor %}
+</table>
+
 {% endblock %}
