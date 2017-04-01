@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checking history</title>
+</head>
+<body>
+{% block content %}
+
+
+<table>
+    <tr>
+        <th>Repository</th>
+        <th>When</th>
+        <th>Amount of defects</th>
+    </tr>
+    {% for search in user_searches %}
+        <tr>
+            <td> <a href="{{ search.get_absolute_url }}"> {{ search.repository }}</a> </td>
+            <td> {{ search.time }} </td>
+            <td> {{ search.defects_amount }} </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}
+</body>
+</html>
