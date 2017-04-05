@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 {% load staticfiles %}
 <link rel="stylesheet" href="../static/codemirror/lib/codemirror.css">
 <script type="text/javascript" src="../static/codemirror/lib/codemirror.js"></script>
@@ -10,18 +10,9 @@
 <h1>Boryaonelove</h1>
         <form role="form" action="" method="post">
             {% csrf_token %}
-            <!--<div id="container">-->
-                <!--<textarea id="code" cols="10" rows="4"></textarea>-->
-            <!--</div>-->
 
             {{ form }}
 
-            <!--<script>-->
-              <!--var editor = CodeMirror.fromTextArea(id_content, {-->
-                <!--lineNumbers: true,-->
-                <!--mode: "text/x-csrc"-->
-              <!--});-->
-            <!--</script>-->
 	    <button type="submit">Submit</button>
 </form>
 

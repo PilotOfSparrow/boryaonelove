@@ -29,3 +29,18 @@ class Defect(models.Model):
     type_of_defect = models.CharField(max_length=150)
     column = models.IntegerField()
     line = models.IntegerField()
+
+    def get_absolute_url(self):
+        search = DefectSearch.objects.get(id=self.defect_search.id)
+        return reverse('firstwin:show_defects', kwargs={'repository': search.repository,
+                                                        'time': str(search.time.strftime('%Y-%m-%d-%H-%M-%S')),
+                                                        'file_name': self.file_name,
+                                                        })
+
+    def get_specific_line_url(self):
+        search = DefectSearch.objects.get(id=self.defect_search.id)
+        return reverse('firstwin:show_specific_defect', kwargs={'repository': search.repository,
+                                                                'time': str(search.time.strftime('%Y-%m-%d-%H-%M-%S')),
+                                                                'file_name': self.file_name,
+                                                                'line': self.line,
+                                                                })

@@ -4,6 +4,9 @@ import os
 import subprocess
 
 from django.core.mail import send_mail
+from pygments import highlight
+from pygments.formatters.html import HtmlFormatter
+from pygments.lexers.c_cpp import CLexer
 from requests import get
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -201,6 +204,7 @@ def history(request):
 @login_required
 def search_detail(request, repository, time):
     year, month, day, hour, minute, second = time.split('-')
+
     search = DefectSearch.objects.filter(user=request.user, repository=repository,
                                          time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
 
@@ -209,3 +213,67 @@ def search_detail(request, repository, time):
     return render(request, 'search_detail.html', {
         'defects_query': defects_query,
     })
+
+
+@login_required
+def show_defects(request, repository, time, file_name):
+
+    try:
+        with open('/tmp/borya/%s/%s/%s' % (request.user, time, file_name)) as defected_file:
+            code = defected_file.readlines()
+
+    except FileNotFoundError:
+        return HttpResponse('Can\'t find requested file!')
+
+    styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))
+
+    styled_code_list = styled_code_str.split('\n')
+
+    year, month, day, hour, minute, second = time.split('-')
+
+    search = DefectSearch.objects.filter(user=request.user, repository=repository,
+                                         time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
+
+    defects_query = Defect.objects.filter(defect_search=search, file_name=file_name).order_by('line')
+
+    lines_with_defect = [item.line for item in defects_query]
+
+    for idx, item in enumerate(styled_code_list, 1):
+        if idx in lines_with_defect:
+            tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % item
+            styled_code_list[idx] = tmp_item_str
+
+    return HttpResponse('\n'.join(styled_code_list))
+
+
+@login_required
+def show_specific_defect(request, repository, time, file_name, line):
+    try:
+        with open('/tmp/borya/%s/%s/%s' % (request.user, time, file_name)) as defected_file:
+            code = defected_file.readlines()
+
+    except FileNotFoundError:
+        return HttpResponse('Can\'t find requested file!')
+
+    styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))
+
+    styled_code_list = styled_code_str.split('\n')
+
+    year, month, day, hour, minute, second = time.split('-')
+
+    search = DefectSearch.objects.filter(user=request.user, repository=repository,
+                                         time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
+
+    line_with_defect = Defect.objects.filter(defect_search=search, file_name=file_name, line=line).first().line
+
+    # for idx, item in enumerate(styled_code_list, 1):
+    #     if idx == line_with_defect:
+    #         tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % item
+    #         styled_code_list[idx] = tmp_item_str
+
+    tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % \
+                   styled_code_list[line_with_defect-1]
+
+    styled_code_list[line_with_defect-1] = tmp_item_str
+
+    return HttpResponse('\n'.join(styled_code_list))
