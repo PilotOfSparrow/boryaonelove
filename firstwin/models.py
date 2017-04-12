@@ -36,11 +36,3 @@ class Defect(models.Model):
                                                         'time': str(search.time.strftime('%Y-%m-%d-%H-%M-%S')),
                                                         'file_name': self.file_name,
                                                         })
-
-    def get_specific_line_url(self):
-        search = DefectSearch.objects.get(id=self.defect_search.id)
-        return reverse('firstwin:show_specific_defect', kwargs={'repository': search.repository,
-                                                                'time': str(search.time.strftime('%Y-%m-%d-%H-%M-%S')),
-                                                                'file_name': self.file_name,
-                                                                'line': self.line,
-                                                                })

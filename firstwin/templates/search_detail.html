@@ -20,7 +20,7 @@
             <td><a href="{{ item.get_absolute_url }}">{{ item.file_name }}</a></td>
             <td>{{ item.type_of_defect }}</td>
             <td>{{ item.column }}</td>
-            <td><a href="{{ item.get_specific_line_url }}">{{ item.line }}</a></td>
+            <td>{{ item.line }}</td>
         </tr>
     {% endfor %}
 </table>

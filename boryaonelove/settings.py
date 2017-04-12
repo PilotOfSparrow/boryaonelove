@@ -167,7 +167,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 
 
-   'firstwin.pipeline.request_list_of_repos',
+   # 'firstwin.pipeline.request_list_of_repos',
 
 
 

@@ -13,11 +13,9 @@ class CodeInsertForm(forms.Form):
 
 
 class ChooseMeSenpai(forms.Form):
-    # rl = {}
-
     def __init__(self, *args, **kwargs):
-        rep_choices = kwargs.pop('rep_choices')
+        rep_choices = kwargs.pop('repos_choices')
         super(ChooseMeSenpai, self).__init__(*args, **kwargs)
-        self.fields['ch'].choices = rep_choices
+        self.fields['choices'].choices = rep_choices
 
-    ch = forms.ChoiceField()
+    choices = forms.ChoiceField()

@@ -1,21 +1,9 @@
-import datetime
-import json
-import os
-import subprocess
-
-from django.core.mail import send_mail
-from pygments import highlight
-from pygments.formatters.html import HtmlFormatter
-from pygments.lexers.c_cpp import CLexer
-from requests import get
 from django.contrib.auth.decorators import login_required
+from django.contrib.sessions.models import Session
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.core.cache import cache
-# Create your views here.
-from boryaonelove import settings
-from firstwin.models import DefectSearch, Defect
-from firstwin.utility import formatted_current_time
+
+from firstwin.utility import *
 from .forms import CodeInsertForm, ChooseMeSenpai
 
 
@@ -26,49 +14,15 @@ def index(request):
         form_class = CodeInsertForm(request.POST)
 
         if form_class.is_valid():
-            var = form_class.cleaned_data["content"]
+            source_code = form_class.cleaned_data["content"]
 
-            tmp_source_file_name = "tmpS"
-            tmp_source_file_extension = "c"
-            tmp_outp_extension = "s"
+            defects_status = wrapper_default_defects_processing(source_code)
 
-            str_current_run_dir = '/tmp/borya/ridingTheDragon/%s' % formatted_current_time()
-
-            os.makedirs(str_current_run_dir)
-
-            tmp_source_code_file = open("%s/%s.%s" %
-                                        (str_current_run_dir, tmp_source_file_name, tmp_source_file_extension), "w")
-            tmp_source_code_file.write("%s" % var)
-            tmp_source_code_file.close()
-
-            subprocess.call(["docker", "run",
-                             # меняем рабочую директорию(для мейка)
-                             "-w", "/home/borealis/borealis/checkingTmp",
-                             # расшариваем директорию с проектом
-                             "-v", "%s:/home/borealis/borealis/checkingTmp" % str_current_run_dir,
-                             # имя запускаемого образа
-                             "vorpal/borealis-standalone",
-                             # команда, запускаемая в контейнере
-                             "sudo", "/home/borealis/borealis/wrapper", "-c",
-                             "%s.%s" % (tmp_source_file_name, tmp_source_file_extension),
-                             ])
-
-            try:
-                with open('%s/persistentDefectData.json' % str_current_run_dir) as mistakes_dump:
-                    mistakes_data = json.load(mistakes_dump)
-            except FileNotFoundError:
-                print('Borealis can\'t find any mistakes')
-                return HttpResponse('Borealis can\'t find any mistakes')
-
-            mistakes_list = dict()
-            for mistake in mistakes_data:
-                if bool(mistake):
-                    mistakes_list = mistake
-
-            return HttpResponse(mistakes_list)
-
+            if defects_status[0]:
+                return defects_status[1]
+            else:
+                return HttpResponse('Borealis can\'t find any mistakes!')
     else:
-
         form_class = CodeInsertForm
         return render(request, 'index.html', {
             'form': form_class,
@@ -77,124 +31,58 @@ def index(request):
 
 @login_required
 def home(request):
-    user_backend = cache.get('backend')
+    # tuple of all (public) user repositories
+    user_repos_tuple = tuple
 
-    logged_user_object = request.user.social_auth.get(user=request.user.id, provider=user_backend)
+    user_object = request.user
+
+    session_dict = dict()
+    for sess in Session.objects.iterator():
+        session_dict = sess.get_decoded()
+
+    # user_login_backend = str()
+    if 'social_auth_last_login_backend' in session_dict.keys():
+        user_login_backend = session_dict['social_auth_last_login_backend']
+    else:
+        return HttpResponse('Can\'t detect your authentication backend')
 
     # может попробовать посылать access_token c подвывертом?
-    # if user_backend == 'bitbucket':
+    # if user_login_backend == 'bitbucket':
     #     access_token = logged_user_object.access_token
-    #     bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/pilotofsparrow?oauth_token_secret=%s&oauth_token=%s'
+    #     bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/pilotofsparrow?'
+    #                            'oauth_token_secret=%s&oauth_token=%s'
     #                            % (access_token['oauth_token_secret'], access_token['oauth_token']))
     #     print(bb_rep_list_json.text)
     #     return HttpResponse("You logged in as bitbucket user")
 
-    urepos_list_json = get('https://api.github.com/users/%s/repos' % request.user)
+    if user_login_backend == 'github':
 
-    reps_dict = {}
-    for reps in json.loads(urepos_list_json.text):
-        reps_dict[reps['name']] = reps['html_url']
+        user_repos_tuple = get_github_repos_tuple(user_object.username)
 
-    urepos_tuple_list = tuple((str(n), str(n)) for n in reps_dict.keys())
+        if request.method == 'POST':
+            choice = ChooseMeSenpai(request.POST, repos_choices=user_repos_tuple)
 
-    if request.method == 'POST':
-        which = ChooseMeSenpai(request.POST, rep_choices=urepos_tuple_list)
+            if choice.is_valid():
+                user_repos_choice = choice.cleaned_data['choices']
 
-        if which.is_valid():
-            urepos_choice = which.cleaned_data['ch']
-            # print(var)
+                if wrapper_github_defects_processing(user_object, user_login_backend, user_repos_choice):
 
-            urepos_content_json = get('https://api.github.com/repos/%s/%s/contents' % (request.user, urepos_choice))
-            for file in json.loads(urepos_content_json.text):
-                if file['name'] == 'Makefile' or file['name'] == 'makefile':
-                    # генерируем имя для рабочей дериктории
-                    cur_year = str(datetime.datetime.now().strftime('%Y'))
-                    cur_month = str(datetime.datetime.now().strftime('%m'))
-                    cur_day = str(datetime.datetime.now().strftime('%d'))
-                    cur_hour = str(datetime.datetime.now().strftime('%H'))
-                    cur_min = str(datetime.datetime.now().strftime('%M'))
-                    cur_sec = str(datetime.datetime.now().strftime('%S'))
-                    cur_time = '%s-%s-%s-%s-%s-%s' % (cur_year, cur_month, cur_day, cur_hour, cur_min, cur_sec)
-                    str_current_run_dir = '/tmp/borya/%s/%s' % (request.user, cur_time)
+                    return HttpResponse('Thank you for using Borealis! '
+                                        'It\'s can take a while to check whole project, so '
+                                        'we will inform you via email when it\'s ready.')
+                else:
+                    return HttpResponse('Selected repository doesn\'t contain makefile!')
 
-                    os.makedirs(str_current_run_dir)
-
-                    subprocess.call(['git', 'clone', '--depth=1',
-                                     'https://github.com/%s/%s' % (request.user, urepos_choice),
-                                     '%s' % str_current_run_dir])
-
-                    subprocess.call(["docker", "run",
-                                     # меняем рабочую директорию(для мейка)
-                                     "-w", "/home/borealis/borealis/checkingTmp",
-                                     # расшариваем директорию с проектом
-                                     "-v", "%s:/home/borealis/borealis/checkingTmp" % str_current_run_dir,
-                                     # имя запускаемого образа
-                                     "vorpal/borealis-standalone",
-                                     # команда, запускаемая в контейнере
-                                     "sudo", "make", "CC=/home/borealis/borealis/wrapper",
-                                     ])
-
-                    try:
-                        with open('%s/persistentDefectData.json' % str_current_run_dir) as mistakes_dump:
-                            mistakes_data = json.load(mistakes_dump)
-
-                    except FileNotFoundError:
-                        print('Borealis can\'t find any mistakes')
-                        send_mail(
-                            '%s checked!' % urepos_choice,
-                            'Borya cant find any mistakes',
-                            settings.EMAIL_HOST_USER,
-                            [request.user.email],
-                        )
-                        return HttpResponse('Borealis can\'t find any mistakes')
-
-                    mistakes_list = dict()
-                    for mistake in mistakes_data:
-                        if bool(mistake):
-                            mistakes_list = mistake
-
-                    current_search = DefectSearch.objects.create(
-                        user=request.user,
-                        time='%s-%s-%s %s:%s:%s' % (cur_year, cur_month, cur_day, cur_hour, cur_min, cur_sec),
-                        repository=str(urepos_choice),
-                        defects_amount=len(mistakes_list),
-                    )
-
-                    for mis in mistakes_list:
-                        Defect.objects.create(
-                            defect_search=current_search,
-                            file_name=mis['location']['filename'],
-                            type_of_defect=mis['type'],
-                            column=mis['location']['loc']['col'],
-                            line=mis['location']['loc']['line'],
-                        )
-
-                    send_mail(
-                        '%s checked!' % urepos_choice,
-                        'Borya founded %s mistakes' % len(mistakes_list),
-                        settings.EMAIL_HOST_USER,
-                        [request.user.email],
-                    )
-
-                    return HttpResponse(mistakes_data)
-
-                    # __future__ http response
-                    # return HttpResponse('Thank you for using Borealis! '
-                    #                     'It\'s can take a while to check whole project, so'
-                    #                     'we will inform you via email when it\'s ready.')
-
-            return HttpResponse('Selected repository doesn\'t contain makefile!')
-
-    choose = ChooseMeSenpai(rep_choices=urepos_tuple_list)
+    choices = ChooseMeSenpai(repos_choices=user_repos_tuple)
 
     return render(request, 'home.html', {
-        'ch': choose,
+        'choices': choices,
     })
 
 
 @login_required
 def history(request):
-    user_searches = DefectSearch.objects.filter(user=request.user).order_by('-time')
+    user_searches = get_defect_search_queryset('-time', user=request.user)
 
     return render(request, 'history.html', {
         'user_searches': user_searches,
@@ -203,12 +91,10 @@ def history(request):
 
 @login_required
 def search_detail(request, repository, time):
-    year, month, day, hour, minute, second = time.split('-')
+    search = get_defect_search_queryset(user=request.user, repository=repository,
+                                        time='%s-%s-%s %s:%s:%s' % tuple(time.split('-')))
 
-    search = DefectSearch.objects.filter(user=request.user, repository=repository,
-                                         time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
-
-    defects_query = Defect.objects.filter(defect_search=search).order_by('file_name', 'line')
+    defects_query = get_defect_queryset('file_name', 'line', defect_search=search)
 
     return render(request, 'search_detail.html', {
         'defects_query': defects_query,
@@ -217,63 +103,9 @@ def search_detail(request, repository, time):
 
 @login_required
 def show_defects(request, repository, time, file_name):
+    styled_code_list = mark_file_defects_list(request.user, repository, time, file_name)
 
-    try:
-        with open('/tmp/borya/%s/%s/%s' % (request.user, time, file_name)) as defected_file:
-            code = defected_file.readlines()
-
-    except FileNotFoundError:
-        return HttpResponse('Can\'t find requested file!')
-
-    styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))
-
-    styled_code_list = styled_code_str.split('\n')
-
-    year, month, day, hour, minute, second = time.split('-')
-
-    search = DefectSearch.objects.filter(user=request.user, repository=repository,
-                                         time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
-
-    defects_query = Defect.objects.filter(defect_search=search, file_name=file_name).order_by('line')
-
-    lines_with_defect = [item.line for item in defects_query]
-
-    for idx, item in enumerate(styled_code_list, 1):
-        if idx in lines_with_defect:
-            tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % item
-            styled_code_list[idx] = tmp_item_str
-
-    return HttpResponse('\n'.join(styled_code_list))
-
-
-@login_required
-def show_specific_defect(request, repository, time, file_name, line):
-    try:
-        with open('/tmp/borya/%s/%s/%s' % (request.user, time, file_name)) as defected_file:
-            code = defected_file.readlines()
-
-    except FileNotFoundError:
-        return HttpResponse('Can\'t find requested file!')
-
-    styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))
-
-    styled_code_list = styled_code_str.split('\n')
-
-    year, month, day, hour, minute, second = time.split('-')
-
-    search = DefectSearch.objects.filter(user=request.user, repository=repository,
-                                         time='%s-%s-%s %s:%s:%s' % (year, month, day, hour, minute, second))
-
-    line_with_defect = Defect.objects.filter(defect_search=search, file_name=file_name, line=line).first().line
-
-    # for idx, item in enumerate(styled_code_list, 1):
-    #     if idx == line_with_defect:
-    #         tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % item
-    #         styled_code_list[idx] = tmp_item_str
-
-    tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % \
-                   styled_code_list[line_with_defect-1]
-
-    styled_code_list[line_with_defect-1] = tmp_item_str
-
-    return HttpResponse('\n'.join(styled_code_list))
+    if styled_code_list:
+        return HttpResponse('\n'.join(styled_code_list))
+    else:
+        return HttpResponse('Can\'t find selected file.')

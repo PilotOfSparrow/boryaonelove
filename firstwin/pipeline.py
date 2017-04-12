@@ -6,11 +6,11 @@ from django.core.cache import cache
 import json
 
 
-@partial
-def request_list_of_repos(backend,details, *args, **kwargs):
-    cur_backend = backend.name
-    cache.set('backend', backend.name)
-    print(backend.name)
+# @partial
+# def request_list_of_repos(backend,details, *args, **kwargs):
+#     cur_backend = backend.name
+#     cache.set('backend', backend.name)
+#     print(backend.name)
 
 
     # bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/PilotOfSparrow')
