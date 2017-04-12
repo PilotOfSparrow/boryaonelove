@@ -13,6 +13,10 @@ from boryaonelove import settings
 from firstwin.models import DefectSearch, Defect
 
 
+########################################################################################################################
+#                                                   Get Methods                                                        #
+########################################################################################################################
+
 # returning list of current time in next order:
 #                                             Year (4 digits), Month (2d), Day (2d), Hour (2d), Minute (2d), Second (2d)
 def get_current_time_tuple():
@@ -44,7 +48,14 @@ def get_defect_queryset(*args, **kwargs):
         return Defect.objects.filter(**kwargs)
 
 
-# return tuple of all (public) user repositories
+# return tuple of all (public) user repositories from bitbucket
+def get_bitbucket_repos_tuple(user_name):
+    bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/%s' % user_name)
+
+    return tuple((str(n['name']), str(n['name'])) for n in json.loads(bb_rep_list_json.text)['values'])
+
+
+# return tuple of all (public) user repositories from github
 def get_github_repos_tuple(user_name):
     user_repos_list_json = get('https://api.github.com/users/%s/repos' % user_name)
 
@@ -86,7 +97,28 @@ def get_docker_commands_list(working_dir, source_file_name=None):
                 ]
 
 
-# return True if chosen repository contains makefile
+########################################################################################################################
+#                                                End Get Methods                                                       #
+########################################################################################################################
+
+########################################################################################################################
+#                                              Check for makefile                                                      #
+########################################################################################################################
+
+
+# return True if chosen bitbucket repository contains makefile
+def check_bitbucket_for_makefile(user_name, repository):
+    user_repos_content_json = get('https://api.bitbucket.org/1.0/repositories/%s/%s/src/master/' % (user_name,
+                                                                                                    repository))
+
+    for file in json.loads(user_repos_content_json.text)['files']:
+        if file['path'] == 'Makefile' or file['path'] == 'makefile':
+            return True
+
+    return False
+
+
+# return True if chosen github repository contains makefile
 def check_github_for_makefile(user_name, repository):
     user_repos_content_json = get('https://api.github.com/repos/%s/%s/contents' % (user_name, repository))
 
@@ -95,6 +127,14 @@ def check_github_for_makefile(user_name, repository):
             return True
 
     return False
+
+########################################################################################################################
+#                                               End Check for makefile                                                 #
+########################################################################################################################
+
+########################################################################################################################
+#                                                    Create Dir                                                        #
+########################################################################################################################
 
 
 # creates working dir in format '/tmp/borya/[user_name]/[current-time(YYYY-MM-DD-hh-mm-ss)]', returning absolute path
@@ -106,6 +146,14 @@ def create_working_dir(user_name, current_time_tuple):
     makedirs(str_current_run_dir)
 
     return str_current_run_dir
+
+########################################################################################################################
+#                                                  End Create Dir                                                      #
+########################################################################################################################
+
+########################################################################################################################
+#                                                Send Notification                                                     #
+########################################################################################################################
 
 
 # sending email to user with amount of founded defects
@@ -124,6 +172,14 @@ def send_notification(email, repository, defects_amount=None):
             settings.EMAIL_HOST_USER,
             [email],
         )
+
+########################################################################################################################
+#                                               End Send Notification                                                  #
+########################################################################################################################
+
+########################################################################################################################
+#                                                    Wrappers                                                          #
+########################################################################################################################
 
 
 def wrapper_default_defects_processing(source_code):
@@ -146,6 +202,40 @@ def wrapper_default_defects_processing(source_code):
         print('Can\'t create source file')
 
 
+def wrapper_defects_processing(user_object, user_auth_backend, repository):
+    if (user_auth_backend == 'bitbucket' and check_bitbucket_for_makefile(user_object.username, repository)) \
+            or (user_auth_backend == 'github' and check_github_for_makefile(user_object.username, repository)):
+
+        current_time_tuple = get_current_time_tuple()
+        current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
+
+        subprocess.call(get_cloning_commands_git_list(user_object.username,
+                                                      user_auth_backend,
+                                                      repository,
+                                                      current_working_dir_str))
+
+        subprocess.call(get_docker_commands_list(current_working_dir_str))
+
+        defects_amount_int = defects_processing(user_object,
+                                                repository,
+                                                current_working_dir_str,
+                                                current_time_tuple)
+
+        send_notification(user_object.email, repository, defects_amount_int)
+
+        return True
+    else:
+        return False
+
+########################################################################################################################
+#                                                    End Wrappers                                                      #
+########################################################################################################################
+
+########################################################################################################################
+#                                                Defects Processing                                                    #
+########################################################################################################################
+
+
 # process defects from anonymous user input (index page)
 def default_defects_processing(working_dir):
     try:
@@ -162,32 +252,6 @@ def default_defects_processing(working_dir):
         return [False]
 
     return [True, mistakes_list]
-
-
-def wrapper_github_defects_processing(user_object, user_login_backend, repository):
-    if check_github_for_makefile(user_object.username, repository):
-        # create working directory
-        current_time_tuple = get_current_time_tuple()
-        current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
-
-        subprocess.call(get_cloning_commands_git_list(user_object.username,
-                                                      user_login_backend,
-                                                      repository,
-                                                      current_working_dir_str))
-
-        subprocess.call(get_docker_commands_list(current_working_dir_str))
-
-        defects_amount_int = defects_processing(user_object,
-                                                repository,
-                                                current_working_dir_str,
-                                                current_time_tuple)
-
-        send_notification(user_object.email, repository, defects_amount_int)
-
-        return True
-
-    else:
-        return False
 
 
 # first function opening defects file,
@@ -223,12 +287,20 @@ def defects_processing(user_object, repository, working_dir, creation_time_tuple
     except FileNotFoundError:
         # send_notification(user_object.email, user_repos_choice)
         print('Defects file not found')
-        raise
+        return 0
 
     return len(mistakes_list)
 
+########################################################################################################################
+#                                              End Defects Processing                                                  #
+########################################################################################################################
 
-def mark_file_defects_list(user_object, repository, time, file_name):
+########################################################################################################################
+#                                                  Mark Defects                                                        #
+########################################################################################################################
+
+
+def mark_defects_in_file(user_object, repository, time, file_name):
     try:
         with open('/tmp/borya/%s/%s/%s' % (user_object.username, time, file_name)) as defected_file:
             code = defected_file.readlines()
@@ -253,3 +325,7 @@ def mark_file_defects_list(user_object, repository, time, file_name):
 
     except FileNotFoundError:
         return None
+
+########################################################################################################################
+#                                                End Mark Defects                                                      #
+########################################################################################################################

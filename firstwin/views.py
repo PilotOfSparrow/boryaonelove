@@ -1,9 +1,8 @@
 from django.contrib.auth.decorators import login_required
-from django.contrib.sessions.models import Session
 from django.http import HttpResponse
 from django.shortcuts import render
 
-from firstwin.utility import *
+from firstwin.utils import *
 from .forms import CodeInsertForm, ChooseMeSenpai
 
 
@@ -36,48 +35,37 @@ def home(request):
 
     user_object = request.user
 
-    session_dict = dict()
-    for sess in Session.objects.iterator():
-        session_dict = sess.get_decoded()
-
-    # user_login_backend = str()
-    if 'social_auth_last_login_backend' in session_dict.keys():
-        user_login_backend = session_dict['social_auth_last_login_backend']
+    if request.session['social_auth_last_login_backend']:
+        user_auth_backend = request.session['social_auth_last_login_backend']
     else:
         return HttpResponse('Can\'t detect your authentication backend')
 
-    # может попробовать посылать access_token c подвывертом?
-    # if user_login_backend == 'bitbucket':
-    #     access_token = logged_user_object.access_token
-    #     bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/pilotofsparrow?'
-    #                            'oauth_token_secret=%s&oauth_token=%s'
-    #                            % (access_token['oauth_token_secret'], access_token['oauth_token']))
-    #     print(bb_rep_list_json.text)
-    #     return HttpResponse("You logged in as bitbucket user")
+    if user_auth_backend == 'bitbucket':
+        user_repos_tuple = get_bitbucket_repos_tuple(user_object.username)
 
-    if user_login_backend == 'github':
-
+    if user_auth_backend == 'github':
         user_repos_tuple = get_github_repos_tuple(user_object.username)
 
-        if request.method == 'POST':
-            choice = ChooseMeSenpai(request.POST, repos_choices=user_repos_tuple)
+    # logged_user_object = user_object.social_auth.get(user=request.user.id, provider=user_auth_backend)
 
-            if choice.is_valid():
-                user_repos_choice = choice.cleaned_data['choices']
+    if request.method == 'POST':
+        choice = ChooseMeSenpai(request.POST, repos_choices=user_repos_tuple)
 
-                if wrapper_github_defects_processing(user_object, user_login_backend, user_repos_choice):
+        if choice.is_valid():
+            user_repos_choice = choice.cleaned_data['choices']
 
-                    return HttpResponse('Thank you for using Borealis! '
-                                        'It\'s can take a while to check whole project, so '
-                                        'we will inform you via email when it\'s ready.')
-                else:
-                    return HttpResponse('Selected repository doesn\'t contain makefile!')
+            if wrapper_defects_processing(user_object, user_auth_backend, user_repos_choice):
+                return HttpResponse('Thank you for using Borealis! '
+                                    'It\'s can take a while to check whole project, so '
+                                    'we will inform you via email when it\'s ready.')
+            else:
+                return HttpResponse('Selected repository doesn\'t contain makefile!')
+    else:
+        choices = ChooseMeSenpai(repos_choices=user_repos_tuple)
 
-    choices = ChooseMeSenpai(repos_choices=user_repos_tuple)
-
-    return render(request, 'home.html', {
-        'choices': choices,
-    })
+        return render(request, 'home.html', {
+            'choices': choices,
+        })
 
 
 @login_required
@@ -103,7 +91,7 @@ def search_detail(request, repository, time):
 
 @login_required
 def show_defects(request, repository, time, file_name):
-    styled_code_list = mark_file_defects_list(request.user, repository, time, file_name)
+    styled_code_list = mark_defects_in_file(request.user, repository, time, file_name)
 
     if styled_code_list:
         return HttpResponse('\n'.join(styled_code_list))

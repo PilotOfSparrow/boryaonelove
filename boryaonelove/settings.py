@@ -167,7 +167,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 
 
-   # 'firstwin.pipeline.request_list_of_repos',
+   'firstwin.pipeline.correct_session_last_login_backend',
 
 
 
@@ -196,7 +196,7 @@ USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+# USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
