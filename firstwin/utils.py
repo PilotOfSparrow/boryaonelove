@@ -17,8 +17,7 @@ from firstwin.models import DefectSearch, Defect
 #                                                   Get Methods                                                        #
 ########################################################################################################################
 
-# returning list of current time in next order:
-#                                             Year (4 digits), Month (2d), Day (2d), Hour (2d), Minute (2d), Second (2d)
+# return list of current time in next order: Year (4 digits), Month (2d), Day (2d), Hour (2d), Minute (2d), Second (2d)
 def get_current_time_tuple():
     cur_year = str(datetime.datetime.now().strftime('%Y'))
     cur_month = str(datetime.datetime.now().strftime('%m'))
@@ -30,7 +29,7 @@ def get_current_time_tuple():
     return tuple([cur_year, cur_month, cur_day, cur_hour, cur_min, cur_sec])
 
 
-# returning QuerySet of DefectSearch table, unnamed arguments considered as reason for order_by
+# return QuerySet of DefectSearch table, unnamed arguments considered as arguments for order_by
 def get_defect_search_queryset(*args, **kwargs):
     # if kwargs['time']:
     #     kwargs['time'] = '%s-%s-%s %s:%s:%s' % kwargs['time'].split('-')
@@ -40,7 +39,7 @@ def get_defect_search_queryset(*args, **kwargs):
         return DefectSearch.objects.filter(**kwargs)
 
 
-# returning QuerySet of Defect table, unnamed arguments considered as reason for order_by
+# return QuerySet of Defect table, unnamed arguments considered as arguments for order_by
 def get_defect_queryset(*args, **kwargs):
     if args:
         return Defect.objects.filter(**kwargs).order_by(*args)
@@ -50,25 +49,38 @@ def get_defect_queryset(*args, **kwargs):
 
 # return tuple of all (public) user repositories from bitbucket
 def get_bitbucket_repos_tuple(user_name):
-    bb_rep_list_json = get('https://api.bitbucket.org/2.0/repositories/%s' % user_name)
+    bb_repos_list_json = get('https://api.bitbucket.org/2.0/repositories/%s' % user_name)
 
-    return tuple((str(n['name']), str(n['name'])) for n in json.loads(bb_rep_list_json.text)['values'])
+    return tuple((str(n['name']), str(n['name'])) for n in json.loads(bb_repos_list_json.text)['values'])
 
 
 # return tuple of all (public) user repositories from github
 def get_github_repos_tuple(user_name):
-    user_repos_list_json = get('https://api.github.com/users/%s/repos' % user_name)
+    github_repos_list_json = get('https://api.github.com/users/%s/repos' % user_name)
 
-    reps_dict = {}
-    for reps in json.loads(user_repos_list_json.text):
-        reps_dict[reps['name']] = reps['html_url']
+    return tuple((str(n['name']), str(n['name'])) for n in json.loads(github_repos_list_json.text))
 
-    return tuple((str(n), str(n)) for n in reps_dict.keys())
+
+# return name of system version manager from bitbucket for given user and repository
+def get_bitbucket_repo_scm_str(user_name, repository):
+    bb_repo_list_json = get('https://api.bitbucket.org/2.0/repositories/%s/%s' % (user_name, repository))
+
+    return str(json.loads(bb_repo_list_json.text)['scm'])
 
 
 # return list of commands for cloning git repository
-def get_cloning_commands_git_list(user_name, provider, repository, working_dir):
-    return ['git', 'clone', '--depth=1', 'https://%s.com/%s/%s' % (provider, user_name, repository), '%s' % working_dir]
+def get_cloning_commands_list(user_name, auth_provider, repository, working_dir):
+    if auth_provider == 'github':
+        return ['git', 'clone', 'https://github.com/%s/%s' % (user_name, repository), '%s' % working_dir]
+
+    if auth_provider == 'bitbucket':
+        repo_scm = get_bitbucket_repo_scm_str(user_name, repository)
+
+        if repo_scm == 'git':
+            return ['git', 'clone', 'https://bitbucket.com/%s/%s' % (user_name, repository), '%s' % working_dir]
+
+        if repo_scm == 'hg':
+            return ['hg', 'clone', 'https://bitbucket.com/%s/%s' % (user_name, repository), '%s' % working_dir]
 
 
 # return list of command for running borealis docker image
@@ -137,7 +149,7 @@ def check_github_for_makefile(user_name, repository):
 ########################################################################################################################
 
 
-# creates working dir in format '/tmp/borya/[user_name]/[current-time(YYYY-MM-DD-hh-mm-ss)]', returning absolute path
+# creates working dir in format '/tmp/borya/[user_name]/[current-time(YYYY-MM-DD-hh-mm-ss)]', return absolute path
 #                                                                                                         to created dir
 def create_working_dir(user_name, current_time_tuple):
     current_time_str = '%s-%s-%s-%s-%s-%s' % current_time_tuple
@@ -156,7 +168,7 @@ def create_working_dir(user_name, current_time_tuple):
 ########################################################################################################################
 
 
-# sending email to user with amount of founded defects
+# send email to user with amount of founded defects
 def send_notification(email, repository, defects_amount=None):
     if defects_amount:
         send_mail(
@@ -209,10 +221,10 @@ def wrapper_defects_processing(user_object, user_auth_backend, repository):
         current_time_tuple = get_current_time_tuple()
         current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
 
-        subprocess.call(get_cloning_commands_git_list(user_object.username,
-                                                      user_auth_backend,
-                                                      repository,
-                                                      current_working_dir_str))
+        subprocess.call(get_cloning_commands_list(user_object.username,
+                                                  user_auth_backend,
+                                                  repository,
+                                                  current_working_dir_str))
 
         subprocess.call(get_docker_commands_list(current_working_dir_str))
 
@@ -254,9 +266,9 @@ def default_defects_processing(working_dir):
     return [True, mistakes_list]
 
 
-# first function opening defects file,
-# second create DefectSearch object instance for current checking,
-# third it's create Defect object instance for every defect from file
+# first, function opening defects file,
+# second, create DefectSearch object instance for current checking,
+# third, it's create Defect object instance for every defect from file
 # returning amount of defects
 def defects_processing(user_object, repository, working_dir, creation_time_tuple):
     try:
@@ -285,7 +297,6 @@ def defects_processing(user_object, repository, working_dir, creation_time_tuple
             )
 
     except FileNotFoundError:
-        # send_notification(user_object.email, user_repos_choice)
         print('Defects file not found')
         return 0
 
