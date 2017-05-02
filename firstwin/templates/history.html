@@ -5,16 +5,18 @@
     <title>Checking history</title>
 </head>
 <body>
+{% load staticfiles %}
 {% block content %}
 
+<link rel="stylesheet" href="{% static 'css/history.css' %}">
 
 <table>
     <tr>
         <th>Repository</th>
-        <th>When</th>
+        <th>Search time</th>
         <th>Amount of defects</th>
     </tr>
-    {% for search in user_searches %}
+    {% for search in history %}
         <tr>
             <td> <a href="{{ search.get_absolute_url }}"> {{ search.repository }}</a> </td>
             <td> {{ search.time }} </td>
@@ -22,6 +24,22 @@
         </tr>
     {% endfor %}
 </table>
+
+<div class="pagination">
+    <span class="step-links">
+        {% if history.has_previous %}
+            <a href="?page={{ history.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+            Page {{ history.number }} of {{ history.paginator.num_pages }}.
+        </span>
+
+        {% if history.has_next %}
+            <a href="?page={{ history.next_page_number }}">next</a>
+        {% endif %}
+    </span>
+</div>
 
 {% endblock %}
 </body>

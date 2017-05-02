@@ -6,24 +6,40 @@
 </head>
 <body>
 
+{% load staticfiles %}
 {% block content %}
+
+<link rel="stylesheet" href="{% static 'css/search_detail.css' %}">
 
 <table>
     <tr>
         <th>File name</th>
-        <th>Type of defect</th>
-        <th>Line</th>
-        <th>Column</th>
+        <th>Defects amount</th>
     </tr>
-    {% for item in defects_query %}
+    {% for item in search_history %}
         <tr>
-            <td><a href="{{ item.get_absolute_url }}">{{ item.file_name }}</a></td>
-            <td>{{ item.type_of_defect }}</td>
-            <td>{{ item.line }}</td>
-            <td>{{ item.column }}</td>
+            <td><a href="{{ item.link }}">{{ item.file_name }}</a></td>
+            <td>{{ item.defects_amount }}</td>
         </tr>
     {% endfor %}
 </table>
+
+
+<div class="pagination">
+    <span class="step-links">
+        {% if search_history.has_previous %}
+            <a href="?page={{ search_history.previous_page_number }}">previous</a>
+        {% endif %}
+
+        <span class="current">
+            Page {{ search_history.number }} of {{ search_history.paginator.num_pages }}.
+        </span>
+
+        {% if search_history.has_next %}
+            <a href="?page={{ search_history.next_page_number }}">next</a>
+        {% endif %}
+    </span>
+</div>
 
 {% endblock %}
 

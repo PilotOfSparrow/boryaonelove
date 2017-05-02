@@ -1,31 +1,43 @@
 <!DOCTYPE html>
-{% load staticfiles %}
-<link rel="stylesheet" href="../static/codemirror/lib/codemirror.css">
-<script type="text/javascript" src="../static/codemirror/lib/codemirror.js"></script>
-<script type="text/javascript" src="../static/codemirror/mode/clike/clike.js"></script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Index</title>
+</head>
+<body>
 
+{% load staticfiles %}
+<link rel="stylesheet" href="{% static 'codemirror/lib/codemirror.css' %}">
+<script type="text/javascript" src="{% static 'codemirror/lib/codemirror.js' %}"></script>
+<script type="text/javascript" src="{% static 'codemirror/mode/clike/clike.js' %}"></script>
+
+<link rel="stylesheet" href="{% static 'css/index.css' %}">
 
 
 {% block content %}
 <h1>Boryaonelove</h1>
-        <form role="form" action="" method="post">
-            {% csrf_token %}
+main() function required for correct working (empty one is fine)
+<form role="form" action="" method="post">
+    {% csrf_token %}
 
-            {{ form }}
+    {{ form }}
 
-	    <button type="submit">Submit</button>
+    <button type="submit">Submit</button>
 </form>
 
-<a href="{% url 'social:begin' 'github' %}?next=/home">Login with GitHub</a>
-<a href="{% url 'social:begin' 'bitbucket' %}?next=/home">Login with BitBucket</a>
 
 {% if user and not user.is_anonymous %}
 <p>Hello {{ user.get_username }}</p>
+<p><a href="{% url 'firstwin:logout' %}">Log out</a> </p>
 <p><a href="{% url 'firstwin:history' %}">History</a></p>
 
 {% else %}
 <p>You aren't authorised yet</p>
-
+<a href="{% url 'social:begin' 'github' %}?next=/home">Login with GitHub</a>
+<a href="{% url 'social:begin' 'bitbucket' %}?next=/home">Login with BitBucket</a>
 {% endif %}
 
 {% endblock %}
+
+</body>
+</html>

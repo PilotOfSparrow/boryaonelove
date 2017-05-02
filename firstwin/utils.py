@@ -3,6 +3,7 @@ import json
 import subprocess
 from os import makedirs
 
+from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from pygments import highlight
 from pygments.formatters.html import HtmlFormatter
@@ -13,11 +14,16 @@ from boryaonelove import settings
 from firstwin.models import DefectSearch, Defect
 
 
+
+
+
+
 ########################################################################################################################
 #                                                   Get Methods                                                        #
 ########################################################################################################################
 
 # return list of current time in next order: Year (4 digits), Month (2d), Day (2d), Hour (2d), Minute (2d), Second (2d)
+
 def get_current_time_tuple():
     cur_year = str(datetime.datetime.now().strftime('%Y'))
     cur_month = str(datetime.datetime.now().strftime('%m'))
@@ -94,7 +100,7 @@ def get_docker_commands_list(working_dir, source_file_name=None):
                 # имя запускаемого образа
                 "vorpal/borealis-standalone",
                 # команда, запускаемая в контейнере
-                "sudo", "/home/borealis/borealis/wrapper", "-c", "%s" % source_file_name,
+                "sudo", "/home/borealis/borealis/wrapper", "%s" % source_file_name,
                 ]
     else:
         return ["docker", "run",
@@ -200,7 +206,9 @@ def wrapper_default_defects_processing(source_code):
     default_source_file_name_str = "tmpS.c"
     # default_source_file_extension_str = "c"
 
-    working_dir = create_working_dir(default_anonymous_user_name_str, get_current_time_tuple())
+    current_time_tuple = get_current_time_tuple()
+
+    working_dir = create_working_dir(default_anonymous_user_name_str, current_time_tuple)
 
     try:
         with open("%s/%s" % (working_dir, default_source_file_name_str), "w") as default_source_code_file:
@@ -208,36 +216,47 @@ def wrapper_default_defects_processing(source_code):
 
         subprocess.call(get_docker_commands_list(working_dir, default_source_file_name_str))
 
-        return default_defects_processing(working_dir)
+        default_defects_processing(working_dir, current_time_tuple)
+
+        return mark_defects_in_file(User.objects.get(username='ridingTheDragon'),
+                                    'ridingTheDragon',
+                                    '%s-%s-%s-%s-%s-%s' % current_time_tuple,
+                                    'tmpS.c')
 
     except FileNotFoundError:
         print('Can\'t create source file')
-
-
-def wrapper_defects_processing(user_object, user_auth_backend, repository):
-    if (user_auth_backend == 'bitbucket' and check_bitbucket_for_makefile(user_object.username, repository)) \
-            or (user_auth_backend == 'github' and check_github_for_makefile(user_object.username, repository)):
-
-        current_time_tuple = get_current_time_tuple()
-        current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
-
-        subprocess.call(get_cloning_commands_list(user_object.username,
-                                                  user_auth_backend,
-                                                  repository,
-                                                  current_working_dir_str))
-
-        subprocess.call(get_docker_commands_list(current_working_dir_str))
-
-        defects_amount_int = defects_processing(user_object,
-                                                repository,
-                                                current_working_dir_str,
-                                                current_time_tuple)
-
-        send_notification(user_object.email, repository, defects_amount_int)
-
-        return True
-    else:
         return False
+
+
+# def wrapper_defects_processing(user_object, user_auth_backend, repository):
+#     if (user_auth_backend == 'bitbucket' and check_bitbucket_for_makefile(user_object.username, repository)) \
+#             or (user_auth_backend == 'github' and check_github_for_makefile(user_object.username, repository)):
+#
+#         current_time_tuple = get_current_time_tuple()
+#         print(type)
+#         current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
+#
+#         subprocess.call(get_cloning_commands_list(user_object.username,
+#                                                   user_auth_backend,
+#                                                   repository,
+#                                                   current_working_dir_str))
+#
+#         subprocess.call(get_docker_commands_list(current_working_dir_str))
+#
+#         # print(User.objects.get(id=user_object.pk))
+#
+#         defects_amount_int = defects_processing.delay(user_object.pk,
+#                                                       repository,
+#                                                       current_working_dir_str,
+#                                                       current_time_tuple)
+#
+#         # defects_amount_int = defects_processing(user_object, repository, current_working_dir_str, current_time_tuple)
+#
+#         send_notification(user_object.email, repository, defects_amount_int)
+#
+#         return True
+#     else:
+#         return False
 
 ########################################################################################################################
 #                                                    End Wrappers                                                      #
@@ -249,7 +268,7 @@ def wrapper_defects_processing(user_object, user_auth_backend, repository):
 
 
 # process defects from anonymous user input (index page)
-def default_defects_processing(working_dir):
+def default_defects_processing(working_dir, creation_time_tuple):
     try:
         with open('%s/persistentDefectData.json' % working_dir) as mistakes_dump:
             mistakes_data = json.load(mistakes_dump)
@@ -259,17 +278,29 @@ def default_defects_processing(working_dir):
             if bool(mistake):
                 mistakes_list = mistake
 
+        current_search = DefectSearch.objects.create(
+            user=User.objects.get_or_create(username='ridingTheDragon')[0],
+            time='%s-%s-%s %s:%s:%s' % creation_time_tuple,
+            repository=str('ridingTheDragon'),
+            defects_amount=len(mistakes_list),
+        )
+
+        for mis in mistakes_list:
+            Defect.objects.create(
+                defect_search=current_search,
+                file_name=mis['location']['filename'],
+                type_of_defect=mis['type'],
+                column=mis['location']['loc']['col'],
+                line=mis['location']['loc']['line'],
+            )
+
     except FileNotFoundError:
         print('No defects found')
-        return [False]
+        return False
 
-    return [True, mistakes_list]
+    return True
 
 
-# first, function opening defects file,
-# second, create DefectSearch object instance for current checking,
-# third, it's create Defect object instance for every defect from file
-# returning amount of defects
 def defects_processing(user_object, repository, working_dir, creation_time_tuple):
     try:
         with open('%s/persistentDefectData.json' % working_dir) as mistakes_dump:
@@ -306,10 +337,10 @@ def defects_processing(user_object, repository, working_dir, creation_time_tuple
 #                                              End Defects Processing                                                  #
 ########################################################################################################################
 
+
 ########################################################################################################################
 #                                                  Mark Defects                                                        #
 ########################################################################################################################
-
 
 def mark_defects_in_file(user_object, repository, time, file_name):
     try:
@@ -320,17 +351,36 @@ def mark_defects_in_file(user_object, repository, time, file_name):
 
         styled_code_list = styled_code_str.split('\n')
 
+
         search = get_defect_search_queryset(user=user_object, repository=repository,
                                             time='%s-%s-%s %s:%s:%s' % tuple(time.split('-')))
 
         defects_query = get_defect_queryset('line', defect_search=search, file_name=file_name)
 
-        lines_with_defect = [item.line for item in defects_query]
+        defected_lines_list = [(item.line, item.type_of_defect) for item in defects_query]
 
+        # !Important! lines in lines_with_defects should be sorted in increasing order
+        lines_iterator = 0
         for idx, item in enumerate(styled_code_list, 1):
-            if idx in lines_with_defect:
-                tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span>' % item
+            if idx == defected_lines_list[lines_iterator][0]:
+                tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span> ERROR: ' % item
+
+                tmp_lines_iterator = lines_iterator
+
+                while idx == defected_lines_list[tmp_lines_iterator][0]:
+                    tmp_item_str += defected_lines_list[tmp_lines_iterator][1] + ' '
+
+                    tmp_lines_iterator += 1
+
+                    if tmp_lines_iterator >= len(defected_lines_list):
+                        break
+
                 styled_code_list[idx - 1] = tmp_item_str
+
+                lines_iterator = tmp_lines_iterator
+                if lines_iterator >= len(defected_lines_list):
+                    break
+
 
         return styled_code_list
 

@@ -20,6 +20,6 @@ import json
     # tmp1 = json.loads(tmp.text)
     # print(*tmp1, sep='\n')
 
-@partial
-def correct_session_last_login_backend(backend, details, *args, **kwargs):
-    backend.strategy.session['social_auth_last_login_backend'] = backend.name
+# @partial
+# def correct_session_last_login_backend(backend, details, *args, **kwargs):
+#     backend.strategy.session['social_auth_last_login_backend'] = backend.name

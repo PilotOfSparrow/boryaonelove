@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'django_celery_results',
+
     'social_django',
 
     'firstwin',
@@ -167,7 +169,7 @@ SOCIAL_AUTH_PIPELINE = (
 
 
 
-   'firstwin.pipeline.correct_session_last_login_backend',
+
 
 
 
@@ -218,3 +220,16 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = 'boryaonelove@ya.ru'
 EMAIL_HOST_PASSWORD = 'robotrock'
 EMAIL_USE_TLS = True
+
+
+
+
+# Celery settings
+
+CELERY_BROKER_URL = 'amqp://guest:guest@localhost//'
+
+#: Only add pickle to this list if your broker is secured
+#: from unwanted access (see userguide/security.html)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_TASK_SERIALIZER = 'json'

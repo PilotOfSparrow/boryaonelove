@@ -5,12 +5,11 @@ from . import views
 app_name = 'firstwin'
 
 urlpatterns = [
-        url(r'^$', views.index, name='index'),
-        url(r'^home/$', views.home, name='home'),
-        url(r'^history/$', views.history, name='history'),
-        url(r'^history/(?P<repository>[\w-]+)/(?P<time>[\d-]+)$', views.search_detail, name='search_detail'),
+        url(r'^$', views.index_view, name='index'),
+        url(r'^logout/$', views.logout_view, name='logout'),
+        url(r'^home/$', views.home_view, name='home'),
+        url(r'^history/$', views.history_view, name='history'),
+        url(r'^history/(?P<repository>[\w-]+)/(?P<time>[\d-]+)$', views.search_detail_view, name='search_detail'),
         url(r'^history/(?P<repository>[\w-]+)/(?P<time>[\d-]+)/(?P<file_name>(\.\/)?[\w-]+\.[\w-]+)$',
-            views.show_defects, name='show_defects'),
+            views.show_defects_view, name='show_defects'),
         ]
-
-# url(r'^(?P<repository>[\w-]+)/(?P<time>[\d-]+)/$', views.search_detail, name='search_detail'),
