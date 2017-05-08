@@ -1,16 +1,15 @@
+from celery.result import AsyncResult
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 
-from firstwin.tasks import wrapper_defects_processing
+from firstwin.tasks import wrapper_defects_processing, wrapper_default_defects_processing
 from firstwin.utils import *
 from .forms import CodeInsertForm, ChooseMeSenpai
 
 
-# docker run -i -t -w /home/borealis/borealis/ -v /var/os:/home/borealis/borealis/shamanKing vorpal/borealis-standalone
-# ./wrapper -c /home/borealis/borealis/shamanKing/main.c
 def index_view(request):
     if request.method == "POST":
         form_class = CodeInsertForm(request.POST)
@@ -18,10 +17,12 @@ def index_view(request):
         if form_class.is_valid():
             source_code = form_class.cleaned_data["content"]
 
-            defects_list = wrapper_default_defects_processing(source_code)
+            result = wrapper_default_defects_processing.delay(source_code)
 
-            if defects_list:
-                return HttpResponse('\n'.join(defects_list))
+            if result:
+                request.session['task_id'] = result.task_id
+                # return HttpResponse('\n'.join(defects_list))
+                return redirect('/result/')
             else:
                 return HttpResponse('Borealis can\'t find any mistakes!')
     else:
@@ -137,5 +138,20 @@ def show_defects_view(request, repository, time, file_name):
 
 def logout_view(request):
     logout(request)
-
     return redirect('/')
+
+
+def result_view(request):
+    if request.is_ajax():
+        result = AsyncResult(request.session['task_id'])
+
+        if result.ready():
+            ret = {'status': 'solved'}
+            ret.update({'code': str('\n'.join(result.get()))})
+            # return result_view(request, str(result.get()))
+        else:
+            ret = {'status': 'waiting'}
+
+        return HttpResponse(json.dumps(ret))
+
+    return render(request, 'result.html')

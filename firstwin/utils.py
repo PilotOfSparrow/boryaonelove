@@ -1,6 +1,5 @@
 import datetime
 import json
-import subprocess
 from os import makedirs
 
 from django.contrib.auth.models import User
@@ -12,10 +11,6 @@ from requests import get
 
 from boryaonelove import settings
 from firstwin.models import DefectSearch, Defect
-
-
-
-
 
 
 ########################################################################################################################
@@ -196,73 +191,6 @@ def send_notification(email, repository, defects_amount=None):
 ########################################################################################################################
 
 ########################################################################################################################
-#                                                    Wrappers                                                          #
-########################################################################################################################
-
-
-def wrapper_default_defects_processing(source_code):
-    default_anonymous_user_name_str = 'ridingTheDragon'
-
-    default_source_file_name_str = "tmpS.c"
-    # default_source_file_extension_str = "c"
-
-    current_time_tuple = get_current_time_tuple()
-
-    working_dir = create_working_dir(default_anonymous_user_name_str, current_time_tuple)
-
-    try:
-        with open("%s/%s" % (working_dir, default_source_file_name_str), "w") as default_source_code_file:
-            default_source_code_file.write("%s" % source_code)
-
-        subprocess.call(get_docker_commands_list(working_dir, default_source_file_name_str))
-
-        default_defects_processing(working_dir, current_time_tuple)
-
-        return mark_defects_in_file(User.objects.get(username='ridingTheDragon'),
-                                    'ridingTheDragon',
-                                    '%s-%s-%s-%s-%s-%s' % current_time_tuple,
-                                    'tmpS.c')
-
-    except FileNotFoundError:
-        print('Can\'t create source file')
-        return False
-
-
-# def wrapper_defects_processing(user_object, user_auth_backend, repository):
-#     if (user_auth_backend == 'bitbucket' and check_bitbucket_for_makefile(user_object.username, repository)) \
-#             or (user_auth_backend == 'github' and check_github_for_makefile(user_object.username, repository)):
-#
-#         current_time_tuple = get_current_time_tuple()
-#         print(type)
-#         current_working_dir_str = create_working_dir(user_object.username, current_time_tuple)
-#
-#         subprocess.call(get_cloning_commands_list(user_object.username,
-#                                                   user_auth_backend,
-#                                                   repository,
-#                                                   current_working_dir_str))
-#
-#         subprocess.call(get_docker_commands_list(current_working_dir_str))
-#
-#         # print(User.objects.get(id=user_object.pk))
-#
-#         defects_amount_int = defects_processing.delay(user_object.pk,
-#                                                       repository,
-#                                                       current_working_dir_str,
-#                                                       current_time_tuple)
-#
-#         # defects_amount_int = defects_processing(user_object, repository, current_working_dir_str, current_time_tuple)
-#
-#         send_notification(user_object.email, repository, defects_amount_int)
-#
-#         return True
-#     else:
-#         return False
-
-########################################################################################################################
-#                                                    End Wrappers                                                      #
-########################################################################################################################
-
-########################################################################################################################
 #                                                Defects Processing                                                    #
 ########################################################################################################################
 
@@ -380,7 +308,6 @@ def mark_defects_in_file(user_object, repository, time, file_name):
                 lines_iterator = tmp_lines_iterator
                 if lines_iterator >= len(defected_lines_list):
                     break
-
 
         return styled_code_list
 
