@@ -13,6 +13,17 @@ from boryaonelove import settings
 from firstwin.models import DefectSearch, Defect
 
 
+defects_dict = {
+    "INI-03": "Dereferencing a nullptr",
+    "RES-02": "Using a resource that may have been closed",
+    "REQ-01": "Requires contract check failed",
+    "ENS-01": "Ensures contract check failed",
+    "ASR-01": "Assert check failed",
+    "NDF-01": "Use of undef value detected",
+    "BUF-01": "Index out of bounds",
+    "UNK-99": "UNKNOWN!",
+}
+
 ########################################################################################################################
 #                                                   Get Methods                                                        #
 ########################################################################################################################
@@ -279,7 +290,6 @@ def mark_defects_in_file(user_object, repository, time, file_name):
 
         styled_code_list = styled_code_str.split('\n')
 
-
         search = get_defect_search_queryset(user=user_object, repository=repository,
                                             time='%s-%s-%s %s:%s:%s' % tuple(time.split('-')))
 
@@ -289,19 +299,22 @@ def mark_defects_in_file(user_object, repository, time, file_name):
 
         # !Important! lines in lines_with_defects should be sorted in increasing order
         lines_iterator = 0
-        for idx, item in enumerate(styled_code_list, 1):
+        for idx, defected_line in enumerate(styled_code_list, 1):
             if idx == defected_lines_list[lines_iterator][0]:
-                tmp_item_str = '<span style="background-color: #fd2a2a; padding: 0 5px 0 5px">%s</span> ERROR: ' % item
+                tmp_item_str = '<span style="background-color: #fd2a2a;">%s</span> ERROR: ' % defected_line
 
                 tmp_lines_iterator = lines_iterator
 
                 while idx == defected_lines_list[tmp_lines_iterator][0]:
-                    tmp_item_str += defected_lines_list[tmp_lines_iterator][1] + ' '
+                    tmp_item_str += defects_dict[str(defected_lines_list[tmp_lines_iterator][1])] + ' '
 
                     tmp_lines_iterator += 1
 
                     if tmp_lines_iterator >= len(defected_lines_list):
                         break
+
+                    if idx == defected_lines_list[tmp_lines_iterator][0]:
+                        tmp_item_str += 'and '
 
                 styled_code_list[idx - 1] = tmp_item_str
 

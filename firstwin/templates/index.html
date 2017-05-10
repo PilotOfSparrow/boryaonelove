@@ -29,6 +29,7 @@ main() function required for correct working (empty one is fine)
 {% if user and not user.is_anonymous %}
 <p>Hello {{ user.get_username }}</p>
 <p><a href="{% url 'firstwin:logout' %}">Log out</a> </p>
+<p><a href="{% url 'firstwin:home' %}">Check repository</a></p>
 <p><a href="{% url 'firstwin:history' %}">History</a></p>
 
 {% else %}
