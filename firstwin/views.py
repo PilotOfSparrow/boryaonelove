@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.template.response import TemplateResponse
 
 from firstwin.tasks import wrapper_defects_processing, wrapper_default_defects_processing
 from firstwin.utils import *
@@ -33,7 +34,7 @@ def index_view(request):
 
 
 @login_required
-def home_view(request):
+def repository_check_view(request):
     # tuple of all (public) user repositories
     user_repos_tuple = tuple
 
@@ -67,7 +68,7 @@ def home_view(request):
     else:
         choices = ChooseMeSenpai(repos_choices=user_repos_tuple)
 
-        return render(request, 'home.html', {
+        return render(request, 'repocheck.html', {
             'choices': choices,
         })
 
@@ -131,7 +132,14 @@ def show_defects_view(request, repository, time, file_name):
     styled_code_list = mark_defects_in_file(request.user, repository, time, file_name)
 
     if styled_code_list:
-        return HttpResponse('\n'.join(styled_code_list))
+        marked_code = '\n'.join(styled_code_list)
+        # template = TemplateResponse(request, 'result.html', {
+        #     'marked_code': marked_code,
+        # })
+        return render(request, 'result.html', {
+            'marked_code': marked_code,
+        })
+        # return HttpResponse(marked_code)
     else:
         return HttpResponse('Can\'t find selected file.')
 

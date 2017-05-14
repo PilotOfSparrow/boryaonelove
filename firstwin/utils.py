@@ -301,12 +301,18 @@ def mark_defects_in_file(user_object, repository, time, file_name):
         lines_iterator = 0
         for idx, defected_line in enumerate(styled_code_list, 1):
             if idx == defected_lines_list[lines_iterator][0]:
-                tmp_item_str = '<span style="background-color: #fd2a2a;">%s</span> ERROR: ' % defected_line
+                tmp_defect_message_str = str()
 
                 tmp_lines_iterator = lines_iterator
 
                 while idx == defected_lines_list[tmp_lines_iterator][0]:
-                    tmp_item_str += defects_dict[str(defected_lines_list[tmp_lines_iterator][1])] + ' '
+
+                    tmp_defect_code = str(defected_lines_list[tmp_lines_iterator][1])
+
+                    if tmp_defect_code in defects_dict:
+                        tmp_defect_message_str += defects_dict[tmp_defect_code] + ' '
+                    else:
+                        tmp_defect_message_str += tmp_defect_code + ' '
 
                     tmp_lines_iterator += 1
 
@@ -314,9 +320,12 @@ def mark_defects_in_file(user_object, repository, time, file_name):
                         break
 
                     if idx == defected_lines_list[tmp_lines_iterator][0]:
-                        tmp_item_str += 'and '
+                        tmp_defect_message_str += 'and '
 
-                styled_code_list[idx - 1] = tmp_item_str
+                styled_code_list[idx - 1] = '<div class="defectedline">' \
+                                            '<span style="background-color: #fd2a2a;">%s</span>'\
+                                            '<span class="defectmessage">%s</span>' \
+                                            '</div>' % (defected_line, tmp_defect_message_str)
 
                 lines_iterator = tmp_lines_iterator
                 if lines_iterator >= len(defected_lines_list):

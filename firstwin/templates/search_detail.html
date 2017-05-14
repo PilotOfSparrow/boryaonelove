@@ -7,9 +7,22 @@
 <body>
 
 {% load staticfiles %}
+<link rel="stylesheet" href="{% static 'css/search_detail.css' %}">
+
 {% block content %}
 
-<link rel="stylesheet" href="{% static 'css/search_detail.css' %}">
+{% if user and not user.is_anonymous %}
+
+    <ul>
+        <li><a href="{% url 'firstwin:index' %}">Home</a></li>
+        <li><a href="{% url 'firstwin:repocheck' %}">Check repository</a></li>
+        <li><a href="{% url 'firstwin:history' %}">History</a></li>
+        <li style="float:right"><a href="{% url 'firstwin:logout' %}">Log out</a></li>
+    </ul>
+
+{% endif %}
+
+
 
 <table>
     <tr>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Index</title>
+    <title>Boryaonelove</title>
 </head>
 <body>
 
@@ -13,9 +13,25 @@
 
 <link rel="stylesheet" href="{% static 'css/index.css' %}">
 
+{% if user and not user.is_anonymous %}
+
+    <ul>
+        <li class="active"><a href="{% url 'firstwin:index' %}">Home</a></li>
+        <li><a href="{% url 'firstwin:repocheck' %}">Check repository</a></li>
+        <li><a href="{% url 'firstwin:history' %}">History</a></li>
+        <li style="float:right"><a href="{% url 'firstwin:logout' %}">Log out</a></li>
+    </ul>
+
+{% else %}
+    <ul>
+        <li class="active"><a href="{% url 'firstwin:index' %}">Home</a></li>
+        <li style="float:right"><a href="{% url 'social:begin' 'github' %}?next=/repocheck">GitHub</a></li>
+        <li style="float:right"><a href="{% url 'social:begin' 'bitbucket' %}?next=/repocheck">BitBucket</a></li>
+    </ul>
+{% endif %}
+
 
 {% block content %}
-<h1>Boryaonelove</h1>
 main() function required for correct working (empty one is fine)
 <form role="form" action="" method="post">
     {% csrf_token %}
@@ -25,18 +41,6 @@ main() function required for correct working (empty one is fine)
     <button type="submit">Submit</button>
 </form>
 
-
-{% if user and not user.is_anonymous %}
-<p>Hello {{ user.get_username }}</p>
-<p><a href="{% url 'firstwin:logout' %}">Log out</a> </p>
-<p><a href="{% url 'firstwin:home' %}">Check repository</a></p>
-<p><a href="{% url 'firstwin:history' %}">History</a></p>
-
-{% else %}
-<p>You aren't authorised yet</p>
-<a href="{% url 'social:begin' 'github' %}?next=/home">Login with GitHub</a>
-<a href="{% url 'social:begin' 'bitbucket' %}?next=/home">Login with BitBucket</a>
-{% endif %}
 
 {% endblock %}
 

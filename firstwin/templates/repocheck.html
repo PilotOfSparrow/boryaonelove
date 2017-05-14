@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Repository check</title>
+</head>
+<body>
+{% load staticfiles %}
+<link rel="stylesheet" href="{% static 'css/repocheck.css' %}">
+
+{% block content %}
+
+{% if user and not user.is_anonymous %}
+
+    <ul>
+        <li><a href="{% url 'firstwin:index' %}">Home</a></li>
+        <li class="active"><a href="{% url 'firstwin:repocheck' %}">Check repository</a></li>
+        <li><a href="{% url 'firstwin:history' %}">History</a></li>
+        <li style="float:right"><a href="{% url 'firstwin:logout' %}">Log out</a></li>
+    </ul>
+
+{% endif %}
+
+  <p>You can choose from your repositories. Makefile required!</p>
+
+  <p>
+      <form role="form" action="" method="post">
+          {% csrf_token %}
+         <p>{{ choices }}</p>
+         <button type="submit">Submit</button>
+      </form>
+  </p>
+
+
+{% endblock %}
+
+</body>
+</html>

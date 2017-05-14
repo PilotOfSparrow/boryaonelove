@@ -81,6 +81,7 @@ def wrapper_default_defects_processing(source_code):
         print('Can\'t create source file')
         return False
 
+
 @shared_task
 def wrapper_defects_processing(user_id, user_auth_backend, repository):
     user_object = User.objects.get(pk=user_id)
