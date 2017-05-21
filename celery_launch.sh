@@ -1,0 +1,1 @@
+celery -A firstwin worker -l info

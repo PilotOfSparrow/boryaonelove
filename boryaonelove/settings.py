@@ -43,6 +43,8 @@ INSTALLED_APPS = [
 
     'social_django',
 
+    'django_extensions',
+
     'firstwin',
 ]
 

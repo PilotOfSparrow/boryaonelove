@@ -93,6 +93,9 @@ ENV/
 # Project related folders
 .idea/
 firstwin/static
+bin/
+lib/
+include/
 
 # Docker test temp files
 tmpS.c
@@ -100,3 +103,7 @@ tmpS.s
 
 # DB file
 *.sqlite3
+
+# Random shit
+pip-selfcheck.json
+myapp_models.png

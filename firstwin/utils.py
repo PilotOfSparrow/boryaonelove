@@ -2,7 +2,6 @@ import datetime
 import json
 from os import makedirs
 
-from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from pygments import highlight
 from pygments.formatters.html import HtmlFormatter
@@ -24,12 +23,12 @@ defects_dict = {
     "UNK-99": "UNKNOWN!",
 }
 
+
 ########################################################################################################################
 #                                                   Get Methods                                                        #
 ########################################################################################################################
 
 # return list of current time in next order: Year (4 digits), Month (2d), Day (2d), Hour (2d), Minute (2d), Second (2d)
-
 def get_current_time_tuple():
     cur_year = str(datetime.datetime.now().strftime('%Y'))
     cur_month = str(datetime.datetime.now().strftime('%m'))
@@ -161,11 +160,11 @@ def check_github_for_makefile(user_name, repository):
 ########################################################################################################################
 
 
-# creates working dir in format '/tmp/borya/[user_name]/[current-time(YYYY-MM-DD-hh-mm-ss)]', return absolute path
+# creates working dir in format '/var/borya/[user_name]/[current-time(YYYY-MM-DD-hh-mm-ss)]', return absolute path
 #                                                                                                         to created dir
 def create_working_dir(user_name, current_time_tuple):
     current_time_str = '%s-%s-%s-%s-%s-%s' % current_time_tuple
-    str_current_run_dir = '/tmp/borya/%s/%s' % (user_name, current_time_str)
+    str_current_run_dir = '/var/borya/%s/%s' % (user_name, current_time_str)
 
     makedirs(str_current_run_dir)
 
@@ -206,40 +205,10 @@ def send_notification(email, repository, defects_amount=None):
 ########################################################################################################################
 
 
-# process defects from anonymous user input (index page)
-def default_defects_processing(working_dir, creation_time_tuple):
-    try:
-        with open('%s/persistentDefectData.json' % working_dir) as mistakes_dump:
-            mistakes_data = json.load(mistakes_dump)
-
-        mistakes_list = dict()
-        for mistake in mistakes_data:
-            if bool(mistake):
-                mistakes_list = mistake
-
-        current_search = DefectSearch.objects.create(
-            user=User.objects.get_or_create(username='ridingTheDragon')[0],
-            time='%s-%s-%s %s:%s:%s' % creation_time_tuple,
-            repository=str('ridingTheDragon'),
-            defects_amount=len(mistakes_list),
-        )
-
-        for mis in mistakes_list:
-            Defect.objects.create(
-                defect_search=current_search,
-                file_name=mis['location']['filename'],
-                type_of_defect=mis['type'],
-                column=mis['location']['loc']['col'],
-                line=mis['location']['loc']['line'],
-            )
-
-    except FileNotFoundError:
-        print('No defects found')
-        return False
-
-    return True
-
-
+# first, function opening defects file,
+# second, create DefectSearch object instance for current checking,
+# third, it's create Defect object instance for every defect from file
+# returning amount of defects
 def defects_processing(user_object, repository, working_dir, creation_time_tuple):
     try:
         with open('%s/persistentDefectData.json' % working_dir) as mistakes_dump:
@@ -283,7 +252,7 @@ def defects_processing(user_object, repository, working_dir, creation_time_tuple
 
 def mark_defects_in_file(user_object, repository, time, file_name):
     try:
-        with open('/tmp/borya/%s/%s/%s' % (user_object.username, time, file_name)) as defected_file:
+        with open('/var/borya/%s/%s/%s' % (user_object.username, time, file_name)) as defected_file:
             code = defected_file.readlines()
 
         styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))

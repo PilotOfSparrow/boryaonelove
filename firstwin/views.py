@@ -4,7 +4,6 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.template.response import TemplateResponse
 
 from firstwin.tasks import wrapper_defects_processing, wrapper_default_defects_processing
 from firstwin.utils import *
@@ -18,11 +17,10 @@ def index_view(request):
         if form_class.is_valid():
             source_code = form_class.cleaned_data["content"]
 
-            result = wrapper_default_defects_processing.delay(source_code)
+            task = wrapper_default_defects_processing.delay(source_code)
 
-            if result:
-                request.session['task_id'] = result.task_id
-                # return HttpResponse('\n'.join(defects_list))
+            if task:
+                request.session['task_id'] = task.task_id
                 return redirect('/result/')
             else:
                 return HttpResponse('Borealis can\'t find any mistakes!')
@@ -50,8 +48,6 @@ def repository_check_view(request):
 
     if user_auth_backend == 'github':
         user_repos_tuple = get_github_repos_tuple(user_object.username)
-
-    # logged_user_object = user_object.social_auth.get(user=request.user.id, provider=user_auth_backend)
 
     if request.method == 'POST':
         choice = ChooseMeSenpai(request.POST, repos_choices=user_repos_tuple)
@@ -110,7 +106,7 @@ def search_detail_view(request, repository, time):
                             'defects_amount': tmp_defects_query.count(),
                             'link': tmp_defects_query[0].get_absolute_url()})
 
-    search_history_paginator = Paginator(files_query, 25)
+    search_history_paginator = Paginator(files_query, 50)
 
     search_history_page = request.GET.get('page')
     try:
@@ -133,13 +129,9 @@ def show_defects_view(request, repository, time, file_name):
 
     if styled_code_list:
         marked_code = '\n'.join(styled_code_list)
-        # template = TemplateResponse(request, 'result.html', {
-        #     'marked_code': marked_code,
-        # })
         return render(request, 'result.html', {
             'marked_code': marked_code,
         })
-        # return HttpResponse(marked_code)
     else:
         return HttpResponse('Can\'t find selected file.')
 
@@ -156,7 +148,6 @@ def result_view(request):
         if result.ready():
             ret = {'status': 'solved'}
             ret.update({'code': str('\n'.join(result.get()))})
-            # return result_view(request, str(result.get()))
         else:
             ret = {'status': 'waiting'}
 
