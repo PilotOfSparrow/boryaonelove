@@ -14,7 +14,7 @@ from firstwin.utils import get_current_time_tuple, create_working_dir, get_cloni
 @shared_task
 def wrapper_default_defects_processing(source_code):
     default_anonymous_user_name_str = 'ridingTheDragon'
-    default_anonymous_user_object = User.objects.get(username=default_anonymous_user_name_str)[0]
+    default_anonymous_user_object = User.objects.get(username=default_anonymous_user_name_str)
     default_anonymous_user_repo_name_str = 'ridingTheDragon'
     default_source_file_name_str = "tmpS.c"
     # default_source_file_extension_str = "c"

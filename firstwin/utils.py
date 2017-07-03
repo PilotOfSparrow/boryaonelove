@@ -120,6 +120,9 @@ def get_docker_commands_list(working_dir, source_file_name=None):
                 ]
 
 
+def get_borya_save_folder():
+    return '/var/borya'
+
 ########################################################################################################################
 #                                                End Get Methods                                                       #
 ########################################################################################################################
@@ -164,7 +167,7 @@ def check_github_for_makefile(user_name, repository):
 #                                                                                                         to created dir
 def create_working_dir(user_name, current_time_tuple):
     current_time_str = '%s-%s-%s-%s-%s-%s' % current_time_tuple
-    str_current_run_dir = '/var/borya/%s/%s' % (user_name, current_time_str)
+    str_current_run_dir = '%s/%s/%s' % (get_borya_save_folder(), user_name, current_time_str)
 
     makedirs(str_current_run_dir)
 
@@ -252,7 +255,7 @@ def defects_processing(user_object, repository, working_dir, creation_time_tuple
 
 def mark_defects_in_file(user_object, repository, time, file_name):
     try:
-        with open('/var/borya/%s/%s/%s' % (user_object.username, time, file_name)) as defected_file:
+        with open('%s/%s/%s/%s' % (get_borya_save_folder(), user_object.username, time, file_name)) as defected_file:
             code = defected_file.readlines()
 
         styled_code_str = highlight(" ".join(code), CLexer(), HtmlFormatter(noclasses=True, linenos='inline'))
